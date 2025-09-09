@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserPlus, Package, Calendar, DollarSign, Search, Plus, Edit, Trash2, Eye } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://shrim9.netlify.app/api';
 
 const TailorShopApp = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');

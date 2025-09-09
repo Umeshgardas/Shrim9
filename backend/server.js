@@ -11,6 +11,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use(cors({
+  origin: [
+    "http://localhost:5173",                // local dev
+    "https://shrim9.netlify.app"            // deployed frontend
+  ],
+  credentials: true
+}));
 // MongoDB Connection
 
 // mongoose.connect('mongodb://localhost:27017/tailorshop', {
