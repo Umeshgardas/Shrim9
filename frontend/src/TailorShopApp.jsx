@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserPlus, Package, Calendar, DollarSign, Search, Plus, Edit, Trash2, Eye } from 'lucide-react';
 
-const API_URL = 'https://shrim9.netlify.app/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const TailorShopApp = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -67,9 +67,9 @@ const TailorShopApp = () => {
   const fetchDashboardData = async () => {
     try {
       const [customersRes, ordersRes, statsRes] = await Promise.all([
-        fetchWithAuth(`${API_URL}/customers`),
-        fetchWithAuth(`${API_URL}/orders`),
-        fetchWithAuth(`${API_URL}/dashboard/stats`)
+        fetchWithAuth(`${API_URL}/api/customers`,),
+        fetchWithAuth(`${API_URL}/api/orders`),
+        fetchWithAuth(`${API_URL}/api/dashboard/stats`)
       ]);
 
       if (customersRes.ok) setCustomers(await customersRes.json());
