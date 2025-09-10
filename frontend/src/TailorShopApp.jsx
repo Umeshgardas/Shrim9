@@ -67,9 +67,9 @@ const TailorShopApp = () => {
   const fetchDashboardData = async () => {
     try {
       const [customersRes, ordersRes, statsRes] = await Promise.all([
-        fetchWithAuth(`${API_URL}/api/customers`,),
-        fetchWithAuth(`${API_URL}/api/orders`),
-        fetchWithAuth(`${API_URL}/api/dashboard/stats`)
+        fetchWithAuth(`${API_URL}/customers`,),
+        fetchWithAuth(`${API_URL}/orders`),
+        fetchWithAuth(`${API_URL}/dashboard/stats`)
       ]);
 
       if (customersRes.ok) setCustomers(await customersRes.json());
