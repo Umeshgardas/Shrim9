@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { API_URL } from "../constants";
 
 const AuthForm = ({ onAuthSuccess }) => {
   const [currentForm, setCurrentForm] = useState("login");
@@ -12,7 +13,6 @@ const AuthForm = ({ onAuthSuccess }) => {
     role: "customer",
   });
 
-  const API_URL = import.meta.env.API_URL ;
 
   const handleLogin = async (e) => {
     e.preventDefault();
