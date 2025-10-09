@@ -1,22 +1,29 @@
-// config/db.js
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    console.log('🔗 Attempting MongoDB connection...');
+    console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Present' : 'Missing');
+    
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      // Remove deprecated options
-      // useNewUrlParser: true, // This is now default in Mongoose 6+
-      // useUnifiedTopology: true, // This is now default in Mongoose 6+
-      // Add these modern options instead
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
 
-    // console.log(`MongoDB Connected: ${conn.connection.host}`);
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    console.log(`📁 Database: ${conn.connection.name}`);
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    console.error('❌ Database connection error:', error.message);
+    // Don't exit process - let server run without DB
   }
 };
+
+mongoose.connection.on('error', err => {
+  console.log('❌ MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('⚠️ MongoDB disconnected');
+});
 
 module.exports = connectDB;

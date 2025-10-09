@@ -41,9 +41,10 @@ app.get("/health", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Start server immediately, don't wait for DB connection
+// 🚨 CRITICAL FIX: Start server immediately
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Database status: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
 });
 
 module.exports = app;
