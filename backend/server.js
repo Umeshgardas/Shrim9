@@ -14,7 +14,7 @@ app.use(
 );
 app.use(express.json());
 
-// Database connection - IMPORTANT: Use the exported function
+// Database connection
 const connectDB = require("./config/db");
 connectDB();
 
@@ -31,8 +31,7 @@ app.get("/", (req, res) => {
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-  const dbStatus =
-    mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
   res.json({
     status: "OK",
     database: dbStatus,
@@ -42,12 +41,9 @@ app.get("/health", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Only start server if database connection is successful
-mongoose.connection.once("open", () => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+// Start server immediately, don't wait for DB connection
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
 module.exports = app;
-
