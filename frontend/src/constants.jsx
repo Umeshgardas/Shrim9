@@ -1,9 +1,7 @@
 // src/constants.js
 
 // API Configuration
-export const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? "http://localhost:5000"
-  : "https://shrim9.onrender.com";
+export const API_URL = "https://shrim9.onrender.com";
 
 // Shirt measurement fields
 export const shirtFields = [
@@ -55,7 +53,7 @@ export const garmentTypes = [
   "Shirt with Pant",
   "Traditional Wear",
   "Western Wear",
-  "Other"
+  "Other",
 ];
 
 // Fabric types for dropdown
@@ -82,5 +80,5 @@ export const fabricTypes = [
   "Tweed",
   "Voile",
   "Brocade",
-  "Other"
+  "Other",
 ];
