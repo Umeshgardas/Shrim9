@@ -8,7 +8,11 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://shrim9.netlify.app"],
+    origin: [
+      "http://localhost:5173",
+      "https://shrim9.netlify.app",
+      "https://shrim9-1.onrender.com",
+    ],
     credentials: true,
   })
 );
@@ -31,7 +35,8 @@ app.get("/", (req, res) => {
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+  const dbStatus =
+    mongoose.connection.readyState === 1 ? "connected" : "disconnected";
   res.json({
     status: "OK",
     database: dbStatus,
@@ -42,9 +47,13 @@ app.get("/health", (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 // 🚨 CRITICAL FIX: Start server immediately
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Database status: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
+  console.log(
+    `📊 Database status: ${
+      mongoose.connection.readyState === 1 ? "Connected" : "Disconnected"
+    }`
+  );
 });
 
 module.exports = app;
