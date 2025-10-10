@@ -277,7 +277,7 @@ function App() {
           border: "1px solid #ccc",
         }}
       >
-        API: {API_URL}
+        {/* API: {API_URL} */}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Users, ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'react-toastify';
 import CustomerModal from './CustomerModal';
 import { API_URL } from '../constants';
@@ -10,11 +10,71 @@ const Customers = ({ customers, shirtFields, pantFields, onDataUpdate, token, is
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const filteredCustomers = customers.filter(
+  // Sorting state - matching Dashboard structure
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: 'ascending'
+  });
+
+  // Filter customers based on search
+  const baseFilteredCustomers = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.phone.includes(searchTerm)
   );
+
+  // Sort customers
+  const filteredCustomers = React.useMemo(() => {
+    if (!sortConfig.key) return baseFilteredCustomers;
+
+    return [...baseFilteredCustomers].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      // Handle empty values
+      if (!aValue && bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+      if (aValue && !bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+      if (!aValue && !bValue) return 0;
+
+      // Handle different data types for sorting
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) {
+        return sortConfig.direction === 'ascending' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'ascending' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [baseFilteredCustomers, sortConfig]);
+
+  // Handle sort request - matching Dashboard behavior
+  const handleSort = (key) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'ascending' ? 'descending' : 'ascending'
+    }));
+  };
+
+  // Get sort icon - matching Dashboard icons exactly
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) {
+      return <ChevronsUpDown size={16} className="sort-icon" />;
+    }
+    return sortConfig.direction === 'ascending' 
+      ? <ChevronUp size={16} className="sort-icon active" />
+      : <ChevronDown size={16} className="sort-icon active" />;
+  };
+
+  // Get aria-sort attribute for accessibility
+  const getAriaSort = (key) => {
+    if (sortConfig.key !== key) return 'none';
+    return sortConfig.direction === 'ascending' ? 'ascending' : 'descending';
+  };
 
   // If not admin, show access denied
   if (!isAdmin) {
@@ -37,7 +97,6 @@ const Customers = ({ customers, shirtFields, pantFields, onDataUpdate, token, is
     });
   };
 
-  // Add the missing performDeleteCustomer function
   const performDeleteCustomer = async (id) => {
     setLoading(true);
     try {
@@ -82,37 +141,22 @@ const Customers = ({ customers, shirtFields, pantFields, onDataUpdate, token, is
   };
 
   const handleDeleteCustomer = async (id) => {
-    // Custom confirmation toast
     toast.info(
       <div>
         <p>Are you sure you want to delete this customer?</p>
-        <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+        <div className="confirmation-buttons">
           <button
             onClick={async () => {
               toast.dismiss();
               await performDeleteCustomer(id);
             }}
-            style={{
-              padding: '5px 15px',
-              background: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
+            className="confirm-btn"
           >
             Yes, Delete
           </button>
           <button
             onClick={() => toast.dismiss()}
-            style={{
-              padding: '5px 15px',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
+            className="cancel-btn"
           >
             Cancel
           </button>
@@ -139,12 +183,15 @@ const Customers = ({ customers, shirtFields, pantFields, onDataUpdate, token, is
   };
 
   return (
-    <div>
+    <div className="customers-page">
       <div className="action-bar">
-        <h1 className="page-title">Customers</h1>
-        <div className="action-bar">
+        <h1 className="page-title">
+          <Users className="page-title-icon" />
+          Customers Management
+        </h1>
+        <div className="action-controls">
           <div className="search-container">
-            <Search className="search-icon" size={20} />
+            <Search className="search-icon" />
             <input
               type="text"
               placeholder="Search customers..."
@@ -171,16 +218,52 @@ const Customers = ({ customers, shirtFields, pantFields, onDataUpdate, token, is
         />
       )}
 
-      <div className="recent-orders">
+      <div className="customers-list-section">
         <h2 className="section-title">Customer List</h2>
         <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th>Address</th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('name')}
+                  aria-sort={getAriaSort('name')}
+                >
+                  <div className="header-content">
+                    <span>Name</span>
+                    {getSortIcon('name')}
+                  </div>
+                </th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('phone')}
+                  aria-sort={getAriaSort('phone')}
+                >
+                  <div className="header-content">
+                    <span>Phone</span>
+                    {getSortIcon('phone')}
+                  </div>
+                </th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('email')}
+                  aria-sort={getAriaSort('email')}
+                >
+                  <div className="header-content">
+                    <span>Email</span>
+                    {getSortIcon('email')}
+                  </div>
+                </th>
+                <th 
+                  className="sortable-header" 
+                  onClick={() => handleSort('address')}
+                  aria-sort={getAriaSort('address')}
+                >
+                  <div className="header-content">
+                    <span>Address</span>
+                    {getSortIcon('address')}
+                  </div>
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>

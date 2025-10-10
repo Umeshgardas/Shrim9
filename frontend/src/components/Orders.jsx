@@ -5,14 +5,17 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   X,
   Calendar,
   User,
   Package,
   DollarSign,
   FileText,
+  Shirt,
 } from "lucide-react";
 import { garmentTypes, fabricTypes, API_URL } from "../constants";
+
 const Orders = ({ orders, customers, onDataUpdate, token }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,6 +25,12 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: "ascending",
+  });
 
   const [orderForm, setOrderForm] = useState({
     customerId: "",
@@ -36,21 +45,148 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
     specialInstructions: "",
   });
 
-  const filteredOrders = orders.filter(
-    (o) =>
-      o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.garmentType.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Create a customer map for faster lookup
+  const customerMap = React.useMemo(() => {
+    const map = {};
+    customers.forEach((customer) => {
+      map[customer._id] = customer;
+    });
+    return map;
+  }, [customers]);
 
-  // Filter customers based on search
+  // Enhanced search functionality
+  const baseFilteredOrders = orders.filter((order) => {
+    if (!searchTerm.trim()) return true;
+
+    const searchLower = searchTerm.toLowerCase().trim();
+    const searchOriginal = searchTerm.trim();
+
+    // Get customer details from the map
+    const customer = customerMap[order.customerId];
+
+    // Search in customer information
+    if (customer) {
+      // Search in customer name
+      if (customer.name?.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+
+      // Search in customer phone (exact match for numbers)
+      if (customer.phone?.includes(searchOriginal)) {
+        return true;
+      }
+
+      // Search in customer email
+      if (customer.email?.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+    }
+
+    // Search in order customer name (fallback)
+    if (order.customerName?.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+
+    // Search in garment type
+    if (order.garmentType?.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+
+    // Search in fabric
+    if (order.fabric?.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+
+    // Search in color
+    if (order.color?.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+
+    // Search in price (convert to string for searching)
+    if (order.price?.toString().includes(searchOriginal)) {
+      return true;
+    }
+
+    // Search in status
+    if (order.status?.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+
+    // Search in special instructions
+    if (order.specialInstructions?.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+
+    return false;
+  });
+
+  // Sort orders
+  const filteredOrders = React.useMemo(() => {
+    if (!sortConfig.key) return baseFilteredOrders;
+
+    return [...baseFilteredOrders].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      // Handle different data types for sorting
+      if (sortConfig.key === "deliveryDate") {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      } else if (
+        sortConfig.key === "price" ||
+        sortConfig.key === "advancePayment"
+      ) {
+        aValue = parseFloat(aValue) || 0;
+        bValue = parseFloat(bValue) || 0;
+      } else if (typeof aValue === "string") {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) {
+        return sortConfig.direction === "ascending" ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === "ascending" ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [baseFilteredOrders, sortConfig]);
+
+  // Handle sort request - matching Dashboard behavior
+  const handleSort = (key) => {
+    let direction = "ascending";
+    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Get sort icon - matching Dashboard icons
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) {
+      return <ChevronsUpDown size={16} className="sort-icon inactive" />;
+    }
+    return sortConfig.direction === "ascending" ? (
+      <ChevronUp size={16} className="sort-icon active" />
+    ) : (
+      <ChevronDown size={16} className="sort-icon active" />
+    );
+  };
+
+  // Enhanced customer search with phone and email
   useEffect(() => {
     if (customerSearch.trim()) {
+      const searchLower = customerSearch.toLowerCase().trim();
+      const searchOriginal = customerSearch.trim();
+
       const filtered = customers.filter(
         (customer) =>
-          customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-          customer.phone.includes(customerSearch)
+          customer.name?.toLowerCase().includes(searchLower) ||
+          customer.phone?.includes(searchOriginal) ||
+          customer.email?.toLowerCase().includes(searchLower)
       );
-      setFilteredCustomers(filtered.slice(0, 10)); // Limit to 10 results
+      setFilteredCustomers(filtered.slice(0, 10));
     } else {
       setFilteredCustomers([]);
     }
@@ -66,24 +202,22 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
       },
     });
   };
-  // In your Orders component, when creating an order:
+
   const handleAddOrder = async (e) => {
     e.preventDefault();
 
-    // Validate customer selection
     if (!orderForm.customerId) {
       alert("Please select a customer from the dropdown");
       return;
     }
 
-    // Find the selected customer to get their email
     const selectedCustomer = customers.find(
       (c) => c._id === orderForm.customerId
     );
 
     const orderData = {
       ...orderForm,
-      customerEmail: selectedCustomer?.email, // Add customer email to order
+      customerEmail: selectedCustomer?.email,
     };
 
     setLoading(true);
@@ -103,41 +237,10 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
       }
     } catch (err) {
       console.log(err);
-
       alert("Error creating order");
     }
     setLoading(false);
   };
-  // const handleAddOrder = async (e) => {
-  //   e.preventDefault();
-
-  //   // Validate customer selection
-  //   if (!orderForm.customerId) {
-  //     alert("Please select a customer from the dropdown");
-  //     return;
-  //   }
-
-  //   setLoading(true);
-  //   try {
-  //     const res = await fetchWithAuth(`${API_URL}/api/orders`, {
-  //       method: "POST",
-  //       body: JSON.stringify(orderForm),
-  //     });
-  //     if (res.ok) {
-  //       onDataUpdate();
-  //       resetOrderForm();
-  //       setShowOrderForm(false);
-  //       alert("Order created successfully");
-  //     } else {
-  //       const errorData = await res.json();
-  //       alert(`Error creating order: ${errorData.message || res.statusText}`);
-  //     }
-  //   } catch (err) {
-  //     console.log(err)
-  //     alert("Error creating order");
-  //   }
-  //   setLoading(false);
-  // };
 
   const handleUpdateOrderStatus = async (orderId, status) => {
     try {
@@ -198,21 +301,6 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
     setFilteredCustomers([]);
   };
 
-  // const getStatusClass = (status) => {
-  //   switch (status) {
-  //     case "pending":
-  //       return "status-badge status-pending";
-  //     case "in-progress":
-  //       return "status-badge status-in-progress";
-  //     case "ready":
-  //       return "status-badge status-ready";
-  //     case "delivered":
-  //       return "status-badge status-delivered";
-  //     default:
-  //       return "status-badge status-pending";
-  //   }
-  // };
-
   const showOrderDetails = (order) => {
     setSelectedOrder(order);
     setShowOrderModal(true);
@@ -246,19 +334,31 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
   };
 
   return (
-    <div>
+    <div className="orders-page">
       <div className="action-bar">
-        <h1 className="page-title">Orders</h1>
-        <div className="action-bar">
+        <h1 className="page-title">
+          <Shirt className="page-title-icon" />
+          Orders Management
+        </h1>
+        <div className="action-controls">
           <div className="search-container">
-            <Search className="search-icon" size={20} />
+            <Search className="search-icon" />
             <input
               type="text"
-              placeholder="Search orders..."
+              placeholder="Search by customer name, mobile, email, garment, fabric, color, price, or status..."
               className="search-input"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button
+                className="clear-search-btn"
+                onClick={() => setSearchTerm("")}
+                title="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
           <button className="primary-btn" onClick={toggleOrderForm}>
             {showOrderForm ? <ChevronUp size={16} /> : <Plus size={16} />}
@@ -276,7 +376,7 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
           >
             <div className="modal-header">
               <h2 className="modal-title">
-                <Package size={24} style={{ marginRight: "10px" }} />
+                <Package className="modal-title-icon" />
                 Order Details
               </h2>
               <button className="modal-close" onClick={closeOrderModal}>
@@ -289,41 +389,64 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
                 {/* Customer Information */}
                 <div className="detail-section">
                   <h3 className="detail-section-title">
-                    <User size={18} style={{ marginRight: "8px" }} />
+                    <User className="detail-section-icon" />
                     Customer Information
                   </h3>
                   <div className="detail-grid">
                     <div className="detail-item">
                       <span className="detail-label">Customer Name:</span>
-                      <span className="detail-value capitalize ">
+                      <span className="detail-value capitalize">
                         {selectedOrder.customerName}
                       </span>
                     </div>
+                    {(() => {
+                      const customer = customerMap[selectedOrder.customerId];
+                      return customer ? (
+                        <>
+                          {customer.phone && (
+                            <div className="detail-item">
+                              <span className="detail-label">Phone:</span>
+                              <span className="detail-value">
+                                {customer.phone}
+                              </span>
+                            </div>
+                          )}
+                          {customer.email && (
+                            <div className="detail-item">
+                              <span className="detail-label">Email:</span>
+                              <span className="detail-value">
+                                {customer.email}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
 
                 {/* Order Information */}
                 <div className="detail-section">
                   <h3 className="detail-section-title">
-                    <Package size={18} style={{ marginRight: "8px" }} />
+                    <Package className="detail-section-icon" />
                     Order Information
                   </h3>
                   <div className="detail-grid">
                     <div className="detail-item">
                       <span className="detail-label">Garment Type:</span>
-                      <span className="detail-value capitalize ">
+                      <span className="detail-value capitalize">
                         {selectedOrder.garmentType}
                       </span>
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Fabric:</span>
-                      <span className="detail-value capitalize ">
+                      <span className="detail-value capitalize">
                         {selectedOrder.fabric || "N/A"}
                       </span>
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Color:</span>
-                      <span className="detail-value capitalize ">
+                      <span className="detail-value capitalize">
                         {selectedOrder.color || "N/A"}
                       </span>
                     </div>
@@ -339,7 +462,7 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
                 {/* Financial Information */}
                 <div className="detail-section">
                   <h3 className="detail-section-title">
-                    <DollarSign size={18} style={{ marginRight: "8px" }} />
+                    <DollarSign className="detail-section-icon" />
                     Financial Information
                   </h3>
                   <div className="detail-grid">
@@ -369,7 +492,7 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
                 {/* Delivery Information */}
                 <div className="detail-section">
                   <h3 className="detail-section-title">
-                    <Calendar size={18} style={{ marginRight: "8px" }} />
+                    <Calendar className="detail-section-icon" />
                     Delivery Information
                   </h3>
                   <div className="detail-grid">
@@ -405,7 +528,7 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
                 {selectedOrder.specialInstructions && (
                   <div className="detail-section">
                     <h3 className="detail-section-title">
-                      <FileText size={18} style={{ marginRight: "8px" }} />
+                      <FileText className="detail-section-icon" />
                       Special Instructions
                     </h3>
                     <div className="special-instructions">
@@ -425,20 +548,20 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
         </div>
       )}
 
-      {/* Add Order Form - Conditionally Rendered */}
+      {/* Add Order Form */}
       {showOrderForm && (
-        <div className="recent-orders" style={{ marginBottom: "2rem" }}>
+        <div className="form-section">
           <h2 className="section-title">Create New Order</h2>
           <form onSubmit={handleAddOrder} className="form-grid">
             {/* Customer Search Field */}
-            <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+            <div className="form-group full-width">
               <label className="form-label">Customer Search *</label>
               <div className="customer-search-container">
                 <div className="search-input-wrapper">
-                  <Search className="search-icon" size={16} />
+                  <Search className="search-icon" />
                   <input
                     type="text"
-                    placeholder="Search customer by name or phone..."
+                    placeholder="Search customer by name, phone, or email..."
                     className="form-input search-input-with-icon"
                     value={customerSearch}
                     onChange={(e) => {
@@ -492,43 +615,49 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
               )}
             </div>
 
-            {/* Garment Type Dropdown */}
+            {/* Garment Type Dropdown - Professional Style */}
             <div className="form-group">
               <label className="form-label">Garment Type *</label>
-              <select
-                className="form-input"
-                value={orderForm.garmentType}
-                onChange={(e) =>
-                  setOrderForm({ ...orderForm, garmentType: e.target.value })
-                }
-                required
-              >
-                <option value="">Select Garment Type</option>
-                {garmentTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
+              <div className="select-wrapper">
+                <select
+                  className="form-input professional-select"
+                  value={orderForm.garmentType}
+                  onChange={(e) =>
+                    setOrderForm({ ...orderForm, garmentType: e.target.value })
+                  }
+                  required
+                >
+                  <option value="">Select Garment Type</option>
+                  {garmentTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="select-chevron" size={16} />
+              </div>
             </div>
 
-            {/* Fabric Type Dropdown */}
+            {/* Fabric Type Dropdown - Professional Style */}
             <div className="form-group">
               <label className="form-label">Fabric Type</label>
-              <select
-                className="form-input"
-                value={orderForm.fabric}
-                onChange={(e) =>
-                  setOrderForm({ ...orderForm, fabric: e.target.value })
-                }
-              >
-                <option value="">Select Fabric Type</option>
-                {fabricTypes.map((fabric) => (
-                  <option key={fabric} value={fabric}>
-                    {fabric}
-                  </option>
-                ))}
-              </select>
+              <div className="select-wrapper">
+                <select
+                  className="form-input professional-select"
+                  value={orderForm.fabric}
+                  onChange={(e) =>
+                    setOrderForm({ ...orderForm, fabric: e.target.value })
+                  }
+                >
+                  <option value="">Select Fabric Type</option>
+                  {fabricTypes.map((fabric) => (
+                    <option key={fabric} value={fabric}>
+                      {fabric}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="select-chevron" size={16} />
+              </div>
             </div>
 
             <div className="form-group">
@@ -608,7 +737,7 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
               />
             </div>
 
-            <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+            <div className="form-group full-width">
               <label className="form-label">Special Instructions</label>
               <textarea
                 placeholder="Special instructions for this order..."
@@ -642,7 +771,7 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
       )}
 
       {/* Orders List */}
-      <div className="recent-orders">
+      <div className="orders-list-section">
         <h2 className="section-title">Orders List</h2>
         {filteredOrders.length === 0 ? (
           <div className="empty-state">
@@ -655,10 +784,42 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Customer</th>
-                  <th>Garment</th>
-                  <th>Price</th>
-                  <th>Delivery Date</th>
+                  <th
+                    className="sortable-header"
+                    onClick={() => handleSort("customerName")}
+                  >
+                    <div className="header-content">
+                      Customer
+                      {getSortIcon("customerName")}
+                    </div>
+                  </th>
+                  <th
+                    className="sortable-header"
+                    onClick={() => handleSort("garmentType")}
+                  >
+                    <div className="header-content">
+                      Garment
+                      {getSortIcon("garmentType")}
+                    </div>
+                  </th>
+                  <th
+                    className="sortable-header"
+                    onClick={() => handleSort("price")}
+                  >
+                    <div className="header-content">
+                      Price
+                      {getSortIcon("price")}
+                    </div>
+                  </th>
+                  <th
+                    className="sortable-header"
+                    onClick={() => handleSort("deliveryDate")}
+                  >
+                    <div className="header-content">
+                      Delivery Date
+                      {getSortIcon("deliveryDate")}
+                    </div>
+                  </th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -666,7 +827,18 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
               <tbody>
                 {filteredOrders.map((order) => (
                   <tr key={order._id}>
-                    <td>{order.customerName}</td>
+                    <td>
+                      <div>{order.customerName}</div>
+                      {(() => {
+                        const customer = customerMap[order.customerId];
+                        return customer ? (
+                          <div className="order-details">
+                            {customer.phone}
+                            {customer.email && ` • ${customer.email}`}
+                          </div>
+                        ) : null;
+                      })()}
+                    </td>
                     <td>
                       <div>{order.garmentType}</div>
                       {order.fabric && (
@@ -686,18 +858,20 @@ const Orders = ({ orders, customers, onDataUpdate, token }) => {
                     </td>
                     <td>{new Date(order.deliveryDate).toLocaleDateString()}</td>
                     <td>
-                      <select
-                        className={`status-dropdown ${order.status}`}
-                        value={order.status}
-                        onChange={(e) =>
-                          handleUpdateOrderStatus(order._id, e.target.value)
-                        }
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="ready">Ready</option>
-                        <option value="delivered">Delivered</option>
-                      </select>
+                      <div className="status-select-wrapper">
+                        <select
+                          className={`status-dropdown compact ${order.status}`}
+                          value={order.status}
+                          onChange={(e) =>
+                            handleUpdateOrderStatus(order._id, e.target.value)
+                          }
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in-progress">In Progress</option>
+                          <option value="ready">Ready</option>
+                          <option value="delivered">Delivered</option>
+                        </select>
+                      </div>
                     </td>
                     <td>
                       <button
